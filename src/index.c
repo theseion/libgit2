@@ -2599,6 +2599,7 @@ typedef struct read_tree_data {
 	git_index *index;
 	git_vector *old_entries;
 	git_vector *new_entries;
+	git_idxmap *new_entries_map;
 	git_vector_cmp entry_cmp;
 	git_tree_cache *tree;
 } read_tree_data;
@@ -2610,6 +2611,7 @@ static int read_tree_cb(
 	git_index_entry *entry = NULL, *old_entry;
 	git_buf path = GIT_BUF_INIT;
 	size_t pos;
+	int error;
 
 	if (git_tree_entry__is_tree(tentry))
 		return 0;
@@ -2647,6 +2649,11 @@ static int read_tree_cb(
 		return -1;
 	}
 
+	if (data->index->ignore_case)
+		git_idxmap_icase_insert((khash_t(idxicase) *) data->new_entries_map, entry, entry, error);
+	else
+		git_idxmap_insert(data->new_entries_map, entry, entry, error);
+
 	return 0;
 }
 
@@ -2654,13 +2661,18 @@ int git_index_read_tree(git_index *index, const git_tree *tree)
 {
 	int error = 0;
 	git_vector entries = GIT_VECTOR_INIT;
+	git_idxmap *entries_map;
 	read_tree_data data;
+
+	if (git_idxmap_alloc(&entries_map) < 0)
+		return -1;
 
 	git_vector_set_cmp(&entries, index->entries._cmp); /* match sort */
 
 	data.index = index;
 	data.old_entries = &index->entries;
 	data.new_entries = &entries;
+	data.new_entries_map = entries_map;
 	data.entry_cmp   = index->entries_search;
 
 	index->tree = NULL;
@@ -2681,11 +2693,13 @@ int git_index_read_tree(git_index *index, const git_tree *tree)
 			error = -1;
 		} else {
 			git_vector_swap(&entries, &index->entries);
+			entries_map = git__swap(index->entries_map, entries_map);
 			git_mutex_unlock(&index->lock);
 		}
 	}
 
 	git_vector_free(&entries);
+	git_idxmap_free(entries_map);
 	if (error < 0)
 		return error;
 
