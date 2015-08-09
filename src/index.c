@@ -2231,9 +2231,9 @@ static int parse_index(git_index *index, const char *buffer, size_t buffer_size)
 		}
 
 		if (index->ignore_case)
-			git_idxmap_insert(index->entries_map, entry, entry, error);
-		else
 			git_idxmap_icase_insert((khash_t(idxicase) *) index->entries_map, entry, entry, error);
+		else
+			git_idxmap_insert(index->entries_map, entry, entry, error);
 
 		if (error < 0) {
 			index_entry_free(entry);

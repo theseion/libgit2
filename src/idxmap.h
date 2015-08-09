@@ -43,8 +43,8 @@ static kh_inline khint_t idxentry_icase_hash(const git_index_entry *e)
 	return h + GIT_IDXENTRY_STAGE(e);
 }
 
-#define idxentry_equal(a, b) (strcmp(a->path, b->path) == 0 && GIT_IDXENTRY_STAGE(a) == GIT_IDXENTRY_STAGE(b))
-#define idxentry_icase_equal(a, b) (strcasecmp(a->path, b->path) == 0 && GIT_IDXENTRY_STAGE(a) == GIT_IDXENTRY_STAGE(b))
+#define idxentry_equal(a, b) (GIT_IDXENTRY_STAGE(a) == GIT_IDXENTRY_STAGE(b) && strcmp(a->path, b->path) == 0)
+#define idxentry_icase_equal(a, b) (GIT_IDXENTRY_STAGE(a) == GIT_IDXENTRY_STAGE(b) && strcasecmp(a->path, b->path) == 0)
 
 #define GIT__USE_IDXMAP \
 	__KHASH_IMPL(idx, static kh_inline, const git_index_entry *, git_index_entry *, 1, idxentry_hash, idxentry_equal)
