@@ -2214,6 +2214,11 @@ static int parse_index(git_index *index, const char *buffer, size_t buffer_size)
 
 	assert(!index->entries.length);
 
+	if (index->ignore_case)
+		kh_resize(idxicase, (khash_t(idxicase) *) index->entries_map, header.entry_count);
+	else
+		kh_resize(idx, index->entries_map, header.entry_count);
+
 	/* Parse all the entries */
 	for (i = 0; i < header.entry_count && buffer_size > INDEX_FOOTER_SIZE; ++i) {
 		git_index_entry *entry;
