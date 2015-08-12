@@ -817,7 +817,7 @@ const git_index_entry *git_index_get_bypath(
 	git_index *index, const char *path, int stage)
 {
 	khiter_t pos;
-	git_index_entry key;
+	git_index_entry key = {{ 0 }};
 
 	assert(index);
 
