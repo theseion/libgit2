@@ -2604,7 +2604,6 @@ typedef struct read_tree_data {
 	git_index *index;
 	git_vector *old_entries;
 	git_vector *new_entries;
-	git_idxmap *new_entries_map;
 	git_vector_cmp entry_cmp;
 	git_tree_cache *tree;
 } read_tree_data;
@@ -2616,7 +2615,6 @@ static int read_tree_cb(
 	git_index_entry *entry = NULL, *old_entry;
 	git_buf path = GIT_BUF_INIT;
 	size_t pos;
-	int error;
 
 	if (git_tree_entry__is_tree(tentry))
 		return 0;
@@ -2654,11 +2652,6 @@ static int read_tree_cb(
 		return -1;
 	}
 
-	if (data->index->ignore_case)
-		git_idxmap_icase_insert((khash_t(idxicase) *) data->new_entries_map, entry, entry, error);
-	else
-		git_idxmap_insert(data->new_entries_map, entry, entry, error);
-
 	return 0;
 }
 
@@ -2668,6 +2661,8 @@ int git_index_read_tree(git_index *index, const git_tree *tree)
 	git_vector entries = GIT_VECTOR_INIT;
 	git_idxmap *entries_map;
 	read_tree_data data;
+	size_t i;
+	git_index_entry *e;
 
 	if (git_idxmap_alloc(&entries_map) < 0)
 		return -1;
@@ -2677,7 +2672,6 @@ int git_index_read_tree(git_index *index, const git_tree *tree)
 	data.index = index;
 	data.old_entries = &index->entries;
 	data.new_entries = &entries;
-	data.new_entries_map = entries_map;
 	data.entry_cmp   = index->entries_search;
 
 	index->tree = NULL;
@@ -2687,6 +2681,23 @@ int git_index_read_tree(git_index *index, const git_tree *tree)
 		return -1;
 
 	error = git_tree_walk(tree, GIT_TREEWALK_POST, read_tree_cb, &data);
+
+	if (index->ignore_case)
+		kh_resize(idxicase, (khash_t(idxicase) *) entries_map, entries.length);
+	else
+		kh_resize(idx, entries_map, entries.length);
+
+	git_vector_foreach(&entries, i, e) {
+		if (index->ignore_case)
+			git_idxmap_icase_insert((git_idxmap_icase *) entries_map, e, e, error);
+		else
+			git_idxmap_insert(entries_map, e, e, error);
+
+		if (error < 0) {
+			giterr_set(GITERR_INDEX, "failed to insert entry into map");
+			return error;
+		}
+	}
 
 	if (!error) {
 		git_vector_sort(&entries);
