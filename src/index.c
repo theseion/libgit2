@@ -832,6 +832,7 @@ const git_index_entry *git_index_get_bypath(
 	if (git_idxmap_valid_index(index->entries_map, pos))
 		return git_idxmap_value_at(index->entries_map, pos);
 
+	giterr_set(GITERR_INDEX, "Index does not contain %s", path);
 	return NULL;
 }
 
@@ -2680,7 +2681,8 @@ int git_index_read_tree(git_index *index, const git_tree *tree)
 	if (index_sort_if_needed(index, true) < 0)
 		return -1;
 
-	error = git_tree_walk(tree, GIT_TREEWALK_POST, read_tree_cb, &data);
+	if ((error = git_tree_walk(tree, GIT_TREEWALK_POST, read_tree_cb, &data)) < 0)
+		goto cleanup;
 
 	if (index->ignore_case)
 		kh_resize(idxicase, (khash_t(idxicase) *) entries_map, entries.length);
@@ -2694,26 +2696,28 @@ int git_index_read_tree(git_index *index, const git_tree *tree)
 			git_idxmap_insert(entries_map, e, e, error);
 
 		if (error < 0) {
+			printf("error\n");
 			giterr_set(GITERR_INDEX, "failed to insert entry into map");
 			return error;
 		}
 	}
 
-	if (!error) {
-		git_vector_sort(&entries);
+	error = 0;
 
-		if ((error = git_index_clear(index)) < 0)
-			/* well, this isn't good */;
-		else if (git_mutex_lock(&index->lock) < 0) {
-			giterr_set(GITERR_OS, "Unable to acquire index lock");
-			error = -1;
-		} else {
-			git_vector_swap(&entries, &index->entries);
-			entries_map = git__swap(index->entries_map, entries_map);
-			git_mutex_unlock(&index->lock);
-		}
+	git_vector_sort(&entries);
+
+	if ((error = git_index_clear(index)) < 0)
+		/* well, this isn't good */;
+	else if (git_mutex_lock(&index->lock) < 0) {
+		giterr_set(GITERR_OS, "Unable to acquire index lock");
+		error = -1;
+	} else {
+		git_vector_swap(&entries, &index->entries);
+		entries_map = git__swap(index->entries_map, entries_map);
+		git_mutex_unlock(&index->lock);
 	}
 
+cleanup:
 	git_vector_free(&entries);
 	git_idxmap_free(entries_map);
 	if (error < 0)
