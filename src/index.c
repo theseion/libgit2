@@ -466,7 +466,9 @@ static void index_free(git_index *index)
 	 */
 	assert(!git_atomic_get(&index->readers));
 
+	printf("clearing\n");
 	git_index_clear(index);
+	printf("idxmap freeing\n");
 	git_idxmap_free(index->entries_map);
 	git_vector_free(&index->entries);
 	git_vector_free(&index->names);
@@ -592,6 +594,7 @@ int git_index_set_caps(git_index *index, int caps)
 	}
 	else {
 		index->ignore_case = ((caps & GIT_INDEXCAP_IGNORE_CASE) != 0);
+		printf("setting ignore_case %d -> %d\n", old_ignore_case, index->ignore_case);
 		index->distrust_filemode = ((caps & GIT_INDEXCAP_NO_FILEMODE) != 0);
 		index->no_symlinks = ((caps & GIT_INDEXCAP_NO_SYMLINKS) != 0);
 	}
@@ -830,7 +833,7 @@ const git_index_entry *git_index_get_bypath(
 		pos = git_idxmap_lookup_index(index->entries_map, &key);
 
 	if (git_idxmap_valid_index(index->entries_map, pos))
-		return git_idxmap_value_at(index->entries_map, pos);
+		return printf("returning '%s'\n", git_idxmap_value_at(index->entries_map, pos)->path), git_idxmap_value_at(index->entries_map, pos);
 
 	giterr_set(GITERR_INDEX, "Index does not contain %s", path);
 	return NULL;

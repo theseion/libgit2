@@ -26,20 +26,12 @@ typedef khash_t(idxicase) git_idxmap_icase;
 
 typedef khiter_t git_idxmap_iter;
 
-/* This is __ac_X31_hash_string but takes the entry's stage into account */
+/* This is __ac_X31_hash_string but with tolower and it takes the entry's stage into account */
 static kh_inline khint_t idxentry_hash(const git_index_entry *e)
 {
 	const char *s = e->path;
-	khint_t h = (khint_t)*s;
-	if (h) for (++s ; *s; ++s) h = (h << 5) - h + (khint_t)*s;
-	return h + GIT_IDXENTRY_STAGE(e);
-}
-
-static kh_inline khint_t idxentry_icase_hash(const git_index_entry *e)
-{
-	const char *s = e->path;
-	khint_t h = (khint_t)*s;
-	if (h) for (++s ; *s; ++s) h = (h << 5) - h + (khint_t)tolower(*s);
+	khint_t h = (khint_t)git__tolower(*s);
+	if (h) for (++s ; *s; ++s) h = (h << 5) - h + (khint_t)git__tolower(*s);
 	return h + GIT_IDXENTRY_STAGE(e);
 }
 
@@ -50,7 +42,7 @@ static kh_inline khint_t idxentry_icase_hash(const git_index_entry *e)
 	__KHASH_IMPL(idx, static kh_inline, const git_index_entry *, git_index_entry *, 1, idxentry_hash, idxentry_equal)
 
 #define GIT__USE_IDXMAP_ICASE \
-	__KHASH_IMPL(idxicase, static kh_inline, const git_index_entry *, git_index_entry *, 1, idxentry_icase_hash, idxentry_icase_equal)
+	__KHASH_IMPL(idxicase, static kh_inline, const git_index_entry *, git_index_entry *, 1, idxentry_hash, idxentry_icase_equal)
 
 #define git_idxmap_alloc(hp) \
 	((*(hp) = kh_init(idx)) == NULL) ? giterr_set_oom(), -1 : 0
